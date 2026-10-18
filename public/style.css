@@ -149,3 +149,76 @@ select {
   .thumb { font-size: 36px; }
   .name { font-size: 14px; }
 }
+
+/* ===== Thẻ sản phẩm là liên kết ===== */
+a.card { color: inherit; text-decoration: none; }
+a.card:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.search-form { flex: 1; min-width: 0; display: flex; }
+.search-form #search { width: 100%; }
+
+/* ===== Trang chi tiết ===== */
+.crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 0 8px;
+  font-size: 14px;
+  color: var(--muted);
+}
+.crumbs a { color: var(--primary); text-decoration: none; }
+.crumbs a:hover { text-decoration: underline; }
+.crumbs .sep { color: var(--line); }
+
+.note { color: var(--muted); padding: 24px 0; }
+
+.detail {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 32px;
+  margin: 16px 0 32px;
+  align-items: start;
+}
+.detail-media .thumb {
+  aspect-ratio: 1 / 1;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  overflow: hidden;
+  font-size: 96px;
+}
+
+.detail-info { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.detail-cat { font-size: 14px; color: var(--primary); text-decoration: none; }
+.detail-cat:hover { text-decoration: underline; }
+.detail-info h1 { margin: 0; font-size: 28px; line-height: 1.25; overflow-wrap: anywhere; }
+.detail-price { font-size: 30px; font-weight: 700; color: var(--price); }
+
+.stock-line { font-size: 14px; font-weight: 600; }
+.stock-line.ok { color: #15803d; }
+.stock-line.low { color: #b45309; }
+.stock-line.out { color: #b91c1c; }
+
+.desc-title { margin: 18px 0 0; font-size: 17px; }
+.desc { margin: 0; line-height: 1.65; color: var(--text); white-space: pre-line; overflow-wrap: anywhere; }
+
+.notfound { text-align: center; padding: 56px 0; }
+.btn {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 10px 24px;
+  background: var(--primary);
+  color: #fff;
+  border-radius: 999px;
+  text-decoration: none;
+}
+.btn:hover { background: var(--primary-hover); }
+
+.related { margin-top: 24px; }
+.related h2 { font-size: 20px; margin: 0 0 14px; }
+
+@media (max-width: 720px) {
+  .detail { grid-template-columns: 1fr; gap: 18px; }
+  .detail-media .thumb { aspect-ratio: 4 / 3; font-size: 64px; }
+  .detail-info h1 { font-size: 22px; }
+  .detail-price { font-size: 26px; }
+}

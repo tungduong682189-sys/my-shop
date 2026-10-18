@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sản phẩm | Cửa hàng Đặng Thới</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap header-row">
+      <a class="brand" href="/">Cửa hàng Đặng Thới</a>
+      <form action="/" method="get" class="search-form">
+        <input id="search" name="q" type="search" placeholder="Tìm sản phẩm..." maxlength="100" aria-label="Tìm sản phẩm">
+      </form>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <nav id="crumbs" class="crumbs" aria-label="Đường dẫn"></nav>
+
+    <p id="loading" class="note">Đang tải...</p>
+
+    <section id="detail" class="detail" hidden></section>
+
+    <section id="notfound" class="notfound" hidden>
+      <h1>Không tìm thấy sản phẩm</h1>
+      <p>Sản phẩm này có thể đã ngừng bán hoặc đường dẫn bị sai.</p>
+      <a class="btn" href="/">Về trang chủ</a>
+    </section>
+
+    <section id="related-wrap" class="related" hidden>
+      <h2>Sản phẩm liên quan</h2>
+      <div id="related" class="grid"></div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">© Cửa hàng nhà đẹp</div>
+  </footer>
+
+  <script src="/common.js"></script>
+  <script src="/product.js"></script>
+</body>
+</html>

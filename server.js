@@ -105,6 +105,53 @@ app.get('/api/products', async (req, res) => {
   }
 });
 
+// Chi tiết một sản phẩm (kèm danh mục cha và sản phẩm liên quan)
+app.get('/api/products/:slug', async (req, res) => {
+  const slug = String(req.params.slug || '').slice(0, 200);
+  try {
+    const result = await pool.query(
+      `SELECT p.id, p.name, p.slug, p.description, p.price, p.stock, p.image_url,
+              p.category_id,
+              c.name AS category, c.slug AS category_slug,
+              pc.name AS parent_name, pc.slug AS parent_slug
+       FROM products p
+       LEFT JOIN categories c  ON c.id  = p.category_id
+       LEFT JOIN categories pc ON pc.id = c.parent_id
+       WHERE p.slug = $1 AND p.is_active = true`,
+      [slug]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Không tìm thấy sản phẩm' });
+    }
+    const product = result.rows[0];
+
+    let related = [];
+    if (product.category_id) {
+      const rel = await pool.query(
+        `SELECT p.id, p.name, p.slug, p.price, p.stock, p.image_url,
+                c.name AS category
+         FROM products p
+         LEFT JOIN categories c ON c.id = p.category_id
+         WHERE p.is_active = true AND p.category_id = $1 AND p.id <> $2
+         ORDER BY p.id DESC
+         LIMIT 4`,
+        [product.category_id, product.id]
+      );
+      related = rel.rows;
+    }
+
+    res.json({ product, related });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Lỗi máy chủ' });
+  }
+});
+
+// Trang chi tiết: mọi địa chỉ dạng /san-pham/ten-san-pham đều dùng chung một file
+app.get('/san-pham/:slug', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'product.html'));
+});
+
 app.listen(PORT, () => {
   console.log(`Cửa hàng chạy tại http://localhost:${PORT}`);
 });
