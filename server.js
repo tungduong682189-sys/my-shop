@@ -7,9 +7,11 @@ if (!process.env.DATABASE_URL) {
 
 const express = require('express');
 const path = require('path');
+const crypto = require('crypto');
 const { Pool } = require('pg');
 
 const app = express();
+app.set('trust proxy', 1); // để lấy đúng địa chỉ IP khi chạy sau Render
 const PORT = process.env.PORT || 3000;
 
 const pool = new Pool({
@@ -150,6 +152,219 @@ app.get('/api/products/:slug', async (req, res) => {
 // Trang chi tiết: mọi địa chỉ dạng /san-pham/ten-san-pham đều dùng chung một file
 app.get('/san-pham/:slug', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'product.html'));
+});
+
+/* ===================== ĐẶT HÀNG ===================== */
+
+// Chuẩn hóa giỏ hàng gửi lên: chỉ nhận mã và số lượng hợp lệ, gộp dòng trùng
+function cartMap(raw) {
+  const list = Array.isArray(raw) ? raw.slice(0, 50) : [];
+  const map = new Map();
+  for (const it of list) {
+    const id = Number(it && it.id);
+    const quantity = Number(it && it.quantity);
+    if (!Number.isInteger(id) || id <= 0 || id > 2147483647) continue;
+    if (!Number.isInteger(quantity) || quantity <= 0) continue;
+    map.set(id, Math.min(99, (map.get(id) || 0) + quantity));
+  }
+  return map;
+}
+
+// Số điện thoại Việt Nam: 10 số bắt đầu bằng 0 (chấp nhận +84)
+function normalizePhone(value) {
+  let s = String(value || '').replace(/[\s.\-()]/g, '');
+  if (s.startsWith('+84')) s = '0' + s.slice(3);
+  return /^0\d{9}$/.test(s) ? s : null;
+}
+
+// Giới hạn số đơn mỗi địa chỉ IP (lưu trong bộ nhớ)
+const orderHits = new Map();
+const ORDER_WINDOW_MS = 10 * 60 * 1000;
+const ORDER_MAX = 5;
+
+function orderRateLimited(ip) {
+  const now = Date.now();
+  const hits = (orderHits.get(ip) || []).filter(t => now - t < ORDER_WINDOW_MS);
+  if (hits.length >= ORDER_MAX) {
+    orderHits.set(ip, hits);
+    return true;
+  }
+  hits.push(now);
+  orderHits.set(ip, hits);
+  return false;
+}
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, hits] of orderHits) {
+    const recent = hits.filter(t => now - t < ORDER_WINDOW_MS);
+    if (recent.length) orderHits.set(ip, recent);
+    else orderHits.delete(ip);
+  }
+}, ORDER_WINDOW_MS).unref();
+
+// Tạo đơn hàng
+app.post('/api/orders', async (req, res) => {
+  const body = req.body || {};
+
+  const name = String(body.customer_name || '').trim();
+  const phone = normalizePhone(body.phone);
+  const address = String(body.address || '').trim();
+  const note = String(body.note || '').trim().slice(0, 500);
+  const payment = String(body.payment_method || 'cod');
+
+  if (name.length < 2 || name.length > 100) {
+    return res.status(400).json({ error: 'Vui lòng nhập họ tên (2 đến 100 ký tự)', field: 'customer_name' });
+  }
+  if (!phone) {
+    return res.status(400).json({ error: 'Số điện thoại không hợp lệ (cần 10 số, bắt đầu bằng 0)', field: 'phone' });
+  }
+  if (address.length < 10 || address.length > 300) {
+    return res.status(400).json({ error: 'Vui lòng nhập địa chỉ đầy đủ (số nhà, đường, phường/xã, quận/huyện, tỉnh/thành)', field: 'address' });
+  }
+  if (payment !== 'cod') {
+    return res.status(400).json({ error: 'Hình thức thanh toán không hợp lệ' });
+  }
+
+  const wanted = cartMap(body.items);
+  if (wanted.size === 0) {
+    return res.status(400).json({ error: 'Giỏ hàng đang trống' });
+  }
+
+  if (orderRateLimited(req.ip)) {
+    return res.status(429).json({ error: 'Bạn đặt hàng quá nhanh. Hãy thử lại sau ít phút.' });
+  }
+
+  const ids = [...wanted.keys()].sort((a, b) => a - b);
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // Khóa các dòng sản phẩm đang mua (sắp theo mã để tránh khóa chéo nhau)
+    const found = await client.query(
+      `SELECT id, name, price, stock FROM products
+       WHERE id = ANY($1::int[]) AND is_active = true
+       ORDER BY id
+       FOR UPDATE`,
+      [ids]
+    );
+    const byId = new Map(found.rows.map(r => [r.id, r]));
+
+    const lines = [];
+    const problems = [];
+    let total = 0;
+    for (const id of ids) {
+      const p = byId.get(id);
+      const qty = wanted.get(id);
+      if (!p) {
+        problems.push('một sản phẩm không còn bán');
+      } else if (p.stock < qty) {
+        problems.push(`"${p.name}" chỉ còn ${p.stock} sản phẩm`);
+      } else {
+        lines.push({ id, name: p.name, price: p.price, quantity: qty });
+        total += p.price * qty;
+      }
+    }
+
+    if (problems.length) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({
+        error: 'stock',
+        message: 'Giỏ hàng đã thay đổi: ' + problems.join('; ') + '. Vui lòng kiểm tra lại.'
+      });
+    }
+
+    if (total > 2000000000) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Giá trị đơn hàng quá lớn' });
+    }
+
+    // Nếu tổng tiền khách đang thấy khác tổng thật thì báo lại, không tự đặt
+    const expected = Number(body.expected_total);
+    if (Number.isInteger(expected) && expected !== total) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({
+        error: 'price',
+        message: 'Giá hoặc tổng tiền đã thay đổi. Vui lòng kiểm tra lại rồi đặt hàng.'
+      });
+    }
+
+    // Trừ kho
+    await client.query(
+      `UPDATE products p SET stock = p.stock - v.qty
+       FROM unnest($1::int[], $2::int[]) AS v(id, qty)
+       WHERE p.id = v.id`,
+      [lines.map(l => l.id), lines.map(l => l.quantity)]
+    );
+
+    // Tạo đơn và các dòng hàng
+    const code = 'DH-' + crypto.randomBytes(6).toString('hex').toUpperCase();
+    const order = await client.query(
+      `INSERT INTO orders (code, customer_name, phone, address, note, total, payment_method)
+       VALUES ($1, $2, $3, $4, $5, $6, 'cod')
+       RETURNING id, code`,
+      [code, name, phone, address, note, total]
+    );
+    await client.query(
+      `INSERT INTO order_items (order_id, product_id, name, price, quantity)
+       SELECT $1, v.pid, v.name, v.price, v.qty
+       FROM unnest($2::int[], $3::text[], $4::int[], $5::int[]) AS v(pid, name, price, qty)`,
+      [
+        order.rows[0].id,
+        lines.map(l => l.id),
+        lines.map(l => l.name),
+        lines.map(l => l.price),
+        lines.map(l => l.quantity)
+      ]
+    );
+
+    await client.query('COMMIT');
+    res.status(201).json({ code: order.rows[0].code, total });
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch {}
+    console.error(err);
+    res.status(500).json({ error: 'Không tạo được đơn hàng. Vui lòng thử lại.' });
+  } finally {
+    client.release();
+  }
+});
+
+// Xem một đơn bằng mã đơn
+app.get('/api/orders/:code', async (req, res) => {
+  const code = String(req.params.code || '').toUpperCase();
+  if (!/^DH-[0-9A-F]{12}$/.test(code)) {
+    return res.status(404).json({ error: 'Không tìm thấy đơn hàng' });
+  }
+  try {
+    const o = await pool.query(
+      `SELECT id, code, customer_name, phone, address, note, total,
+              payment_method, status, created_at
+       FROM orders WHERE code = $1`,
+      [code]
+    );
+    if (o.rows.length === 0) {
+      return res.status(404).json({ error: 'Không tìm thấy đơn hàng' });
+    }
+    const { id, ...order } = o.rows[0];
+    const items = await pool.query(
+      'SELECT name, price, quantity FROM order_items WHERE order_id = $1 ORDER BY id',
+      [id]
+    );
+    res.set('Cache-Control', 'no-store');
+    res.json({ order, items: items.rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Lỗi máy chủ' });
+  }
+});
+
+// Các trang
+app.get('/thanh-toan', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'checkout.html'));
+});
+app.get('/don-hang/:code', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'order.html'));
 });
 
 app.listen(PORT, () => {

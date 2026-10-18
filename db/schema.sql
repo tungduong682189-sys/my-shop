@@ -62,3 +62,7 @@ ALTER TABLE products    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE admins      ENABLE ROW LEVEL SECURITY;
+
+-- Mã đơn công khai (ngẫu nhiên, dùng cho trang xác nhận)
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS code TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS orders_code_idx ON orders (code);

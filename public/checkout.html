@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Đặt hàng | Cửa hàng Đặng Thới</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap header-row">
+      <a class="brand" href="/">Cửa hàng Đặng Thới</a>
+      <form action="/" method="get" class="search-form">
+        <input id="search" name="q" type="search" placeholder="Tìm sản phẩm..." maxlength="100" aria-label="Tìm sản phẩm">
+      </form>
+      <a class="cart-link" href="/gio-hang" aria-label="Giỏ hàng">Giỏ hàng <span id="cart-count" class="cart-count" hidden>0</span></a>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <h1 class="page-title">Đặt hàng</h1>
+
+    <ul id="co-notice" class="cart-notice" hidden></ul>
+    <p id="co-loading" class="note">Đang tải...</p>
+
+    <div id="co-layout" class="checkout-layout" hidden>
+      <form id="co-form" class="panel" novalidate>
+        <h2>Thông tin giao hàng</h2>
+
+        <div class="field">
+          <label for="f-name">Họ và tên</label>
+          <input id="f-name" name="name" type="text" maxlength="100" autocomplete="name" required>
+        </div>
+
+        <div class="field">
+          <label for="f-phone">Số điện thoại</label>
+          <input id="f-phone" name="phone" type="tel" inputmode="tel" maxlength="16" autocomplete="tel" required>
+        </div>
+
+        <div class="field">
+          <label for="f-address">Địa chỉ nhận hàng</label>
+          <textarea id="f-address" name="address" maxlength="300" autocomplete="street-address" required></textarea>
+          <small>Ghi rõ số nhà, đường, phường/xã, quận/huyện, tỉnh/thành.</small>
+        </div>
+
+        <div class="field">
+          <label for="f-note">Ghi chú (không bắt buộc)</label>
+          <textarea id="f-note" name="note" maxlength="500"></textarea>
+        </div>
+
+        <h2>Hình thức thanh toán</h2>
+        <div class="pay-option">
+          <strong>Thanh toán khi nhận hàng (COD)</strong>
+          <span>Bạn trả tiền mặt cho nhân viên giao hàng.</span>
+        </div>
+
+        <p id="form-error" class="form-error" role="alert"></p>
+        <button id="place-btn" class="buy-btn place-btn" type="submit">Đặt hàng</button>
+      </form>
+
+      <aside class="panel summary">
+        <h2>Đơn hàng của bạn</h2>
+        <ul id="co-items" class="order-list"></ul>
+        <div class="sum-row total"><span>Tổng cộng</span><strong id="co-total">0 ₫</strong></div>
+        <p class="sum-note">Phí vận chuyển (nếu có) sẽ được nhân viên báo khi xác nhận đơn.</p>
+        <a class="continue" href="/gio-hang">← Quay lại giỏ hàng</a>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">© Cửa hàng Đặng Thới</div>
+  </footer>
+
+  <script src="/common.js"></script>
+  <script src="/checkout.js"></script>
+</body>
+</html>
