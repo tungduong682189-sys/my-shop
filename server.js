@@ -155,3 +155,60 @@ app.get('/san-pham/:slug', (req, res) => {
 app.listen(PORT, () => {
   console.log(`Cửa hàng chạy tại http://localhost:${PORT}`);
 });
+
+// Kiểm tra giỏ hàng: lấy giá và tồn kho thật từ database, không tin dữ liệu từ trình duyệt
+app.post('/api/cart/validate', async (req, res) => {
+  const raw = Array.isArray(req.body.items) ? req.body.items.slice(0, 50) : [];
+
+  // Chuẩn hóa: chỉ nhận mã và số lượng hợp lệ, gộp các dòng trùng mã
+  const wantedMap = new Map();
+  for (const it of raw) {
+    const id = Number(it && it.id);
+    const quantity = Number(it && it.quantity);
+    if (!Number.isInteger(id) || id <= 0 || id > 2147483647) continue;
+    if (!Number.isInteger(quantity) || quantity <= 0) continue;
+    wantedMap.set(id, Math.min(99, (wantedMap.get(id) || 0) + quantity));
+  }
+  if (wantedMap.size === 0) return res.json({ items: [], total: 0 });
+
+  const ids = [...wantedMap.keys()];
+  try {
+    const result = await pool.query(
+      `SELECT id, name, slug, price, stock, image_url
+       FROM products
+       WHERE id = ANY($1::int[]) AND is_active = true`,
+      [ids]
+    );
+    const found = new Map(result.rows.map(r => [r.id, r]));
+
+    let total = 0;
+    const items = ids.map(id => {
+      const wanted = wantedMap.get(id);
+      const p = found.get(id);
+      if (!p) return { id, available: false, wanted };
+
+      const quantity = Math.min(wanted, p.stock);
+      const available = quantity > 0;
+      const line_total = available ? p.price * quantity : 0;
+      total += line_total;
+      return {
+        ...p,
+        wanted,
+        quantity,
+        available,
+        adjusted: available && quantity < wanted,
+        line_total
+      };
+    });
+
+    res.json({ items, total });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Lỗi máy chủ' });
+  }
+});
+
+// Trang giỏ hàng
+app.get('/gio-hang', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'cart.html'));
+});

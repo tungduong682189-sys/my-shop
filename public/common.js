@@ -75,3 +75,63 @@ function productCard(p) {
   card.append(buildThumb(p), info);
   return card;
 }
+
+/* ===== Giỏ hàng (chỉ lưu mã và số lượng, không lưu giá) ===== */
+
+const CART_KEY = 'cart_v1';
+let memoryCart = []; // dự phòng nếu trình duyệt chặn lưu trữ
+
+function loadCart() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(CART_KEY) || '[]');
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .map(i => ({ id: Number(i && i.id), quantity: Number(i && i.quantity) }))
+      .filter(i => Number.isInteger(i.id) && i.id > 0 && Number.isInteger(i.quantity) && i.quantity > 0);
+  } catch {
+    return memoryCart.slice();
+  }
+}
+
+function saveCart(items) {
+  memoryCart = items.slice();
+  try {
+    localStorage.setItem(CART_KEY, JSON.stringify(items));
+  } catch {}
+  updateCartBadge();
+}
+
+function cartCount() {
+  return loadCart().reduce((sum, i) => sum + i.quantity, 0);
+}
+
+// Trả về số đã thêm được và việc có bị chặn bởi tồn kho hay không
+function addToCart(id, qty, stock) {
+  const cart = loadCart();
+  const max = Math.min(99, stock);
+  const current = cart.find(i => i.id === id);
+  const have = current ? current.quantity : 0;
+  const next = Math.min(max, have + qty);
+  const added = next - have;
+
+  if (current) current.quantity = next;
+  else if (next > 0) cart.push({ id, quantity: next });
+  saveCart(cart);
+
+  return { added, capped: have + qty > max };
+}
+
+function updateCartBadge() {
+  const el = document.getElementById('cart-count');
+  if (!el) return;
+  const n = cartCount();
+  el.textContent = n > 99 ? '99+' : String(n);
+  el.hidden = n === 0;
+}
+
+// Cập nhật khi giỏ thay đổi ở tab khác
+window.addEventListener('storage', e => {
+  if (e.key === CART_KEY) updateCartBadge();
+});
+
+updateCartBadge();

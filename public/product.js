@@ -46,6 +46,86 @@ function stockInfo(stock) {
   return { text: 'Còn hàng', cls: 'ok' };
 }
 
+function renderBuyBox(p) {
+  const box = document.getElementById('buy-box');
+  if (!box) return;
+  box.innerHTML = '';
+
+  if (p.stock <= 0) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'buy-btn';
+    btn.disabled = true;
+    btn.textContent = 'Hết hàng';
+    box.appendChild(btn);
+    return;
+  }
+
+  const max = Math.min(99, p.stock);
+  let qty = 1;
+
+  const row = document.createElement('div');
+  row.className = 'buy-row';
+
+  const stepper = document.createElement('div');
+  stepper.className = 'stepper';
+
+  const minus = document.createElement('button');
+  minus.type = 'button';
+  minus.textContent = '−';
+  minus.setAttribute('aria-label', 'Giảm số lượng');
+
+  const qtyEl = document.createElement('span');
+  qtyEl.className = 'qty';
+
+  const plus = document.createElement('button');
+  plus.type = 'button';
+  plus.textContent = '+';
+  plus.setAttribute('aria-label', 'Tăng số lượng');
+
+  stepper.append(minus, qtyEl, plus);
+
+  const add = document.createElement('button');
+  add.type = 'button';
+  add.className = 'buy-btn';
+  add.textContent = 'Thêm vào giỏ';
+
+  const msg = document.createElement('p');
+  msg.className = 'buy-msg';
+  msg.setAttribute('role', 'status');
+
+  function update() {
+    qtyEl.textContent = String(qty);
+    minus.disabled = qty <= 1;
+    plus.disabled = qty >= max;
+  }
+
+  minus.addEventListener('click', () => { qty = Math.max(1, qty - 1); update(); });
+  plus.addEventListener('click', () => { qty = Math.min(max, qty + 1); update(); });
+
+  add.addEventListener('click', () => {
+    const r = addToCart(p.id, qty, p.stock);
+    msg.textContent = '';
+    if (r.added > 0) {
+      msg.append(
+        r.capped
+          ? `Đã thêm ${r.added} sản phẩm (giỏ đã đạt tối đa số lượng còn trong kho). `
+          : `Đã thêm ${r.added} sản phẩm vào giỏ. `
+      );
+    } else {
+      msg.append('Giỏ hàng đã có tối đa số lượng còn trong kho. ');
+    }
+    const link = document.createElement('a');
+    link.href = '/gio-hang';
+    link.textContent = 'Xem giỏ hàng';
+    msg.appendChild(link);
+  });
+
+  row.append(stepper, add);
+  box.append(row, msg);
+  update();
+}
+
 function renderDetail(p) {
   detailEl.innerHTML = '';
 
@@ -95,6 +175,7 @@ function renderDetail(p) {
   }
 
   detailEl.append(media, info);
+  renderBuyBox(p);
 }
 
 function renderRelated(items) {
