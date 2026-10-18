@@ -3,9 +3,42 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Cửa hàng</title>
+  <title>Cửa hàng Đặng Thới</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>Cửa hàng đang được xây dựng</h1>
+  <header class="site-header">
+    <div class="wrap header-row">
+      <a class="brand" href="/">Cửa hàng nhà đẹp</a>
+      <input id="search" type="search" placeholder="Tìm sản phẩm..." maxlength="100" aria-label="Tìm sản phẩm">
+    </div>
+  </header>
+
+  <main class="wrap">
+    <nav id="chips" class="chips" aria-label="Danh mục"></nav>
+    <nav id="subchips" class="chips sub" aria-label="Danh mục con" hidden></nav>
+
+    <div class="toolbar">
+      <p id="status" role="status"></p>
+      <label class="sort">
+        Sắp xếp
+        <select id="sort">
+          <option value="newest">Mới nhất</option>
+          <option value="price_asc">Giá thấp đến cao</option>
+          <option value="price_desc">Giá cao đến thấp</option>
+        </select>
+      </label>
+    </div>
+
+    <section id="product-grid" class="grid"></section>
+    <p id="empty" hidden>Không tìm thấy sản phẩm nào phù hợp.</p>
+    <div class="more-row"><button id="more" type="button" hidden>Xem thêm</button></div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">© Cửa hàng Đặng Thới</div>
+  </footer>
+
+  <script src="app.js"></script>
 </body>
 </html>

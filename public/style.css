@@ -1,0 +1,151 @@
+:root {
+  --bg: #f7f5f2;
+  --card: #ffffff;
+  --text: #1f2933;
+  --muted: #6b7280;
+  --line: #e5e1da;
+  --primary: #b5532f;
+  --primary-hover: #983f20;
+  --chip: #ece7df;
+  --price: #b5532f;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.wrap { max-width: 1100px; margin: 0 auto; padding: 0 16px; }
+
+/* Đầu trang */
+.site-header {
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.header-row { display: flex; align-items: center; gap: 16px; padding-top: 12px; padding-bottom: 12px; }
+.brand { font-size: 20px; font-weight: 700; color: var(--primary); text-decoration: none; white-space: nowrap; }
+#search {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 16px;
+  background: var(--bg);
+  color: var(--text);
+}
+#search:focus-visible, select:focus-visible, button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Danh mục */
+.chips { display: flex; gap: 8px; overflow-x: auto; padding: 16px 0 4px; scrollbar-width: thin; }
+.chips.sub { padding-top: 4px; }
+.chip {
+  flex: none;
+  border: none;
+  background: var(--chip);
+  color: var(--text);
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.chip:hover { background: #e0d9ce; }
+.chip.active { background: var(--primary); color: #fff; }
+.sub .chip { padding: 6px 12px; font-size: 14px; background: transparent; border: 1px solid var(--line); }
+.sub .chip.active { background: var(--primary); border-color: var(--primary); }
+
+/* Thanh công cụ */
+.toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 16px 0; flex-wrap: wrap; }
+#status { margin: 0; color: var(--muted); font-size: 14px; }
+.sort { font-size: 14px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+select {
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+}
+
+/* Lưới sản phẩm */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 16px; }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow 0.15s, transform 0.15s;
+}
+.card:hover { box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08); transform: translateY(-2px); }
+
+.thumb {
+  aspect-ratio: 4 / 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+  font-weight: 700;
+  color: rgba(0, 0, 0, 0.35);
+  position: relative;
+}
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: #1f2933;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.info { padding: 12px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.cat { font-size: 12px; color: var(--muted); }
+.name { margin: 0; font-size: 15px; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; }
+.price { margin-top: auto; padding-top: 6px; font-size: 17px; font-weight: 700; color: var(--price); }
+.stock { font-size: 12px; color: #b45309; }
+
+#empty { text-align: center; color: var(--muted); padding: 40px 0; }
+
+.more-row { text-align: center; margin: 24px 0 8px; }
+#more {
+  padding: 10px 28px;
+  border: 1px solid var(--primary);
+  background: transparent;
+  color: var(--primary);
+  border-radius: 999px;
+  font-size: 16px;
+  font-family: inherit;
+  cursor: pointer;
+}
+#more:hover { background: var(--primary); color: #fff; }
+#more:disabled { opacity: 0.6; cursor: default; }
+
+.site-footer { margin-top: 40px; padding: 24px 0; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+
+@media (max-width: 520px) {
+  .header-row { flex-wrap: wrap; }
+  #search { flex-basis: 100%; order: 2; }
+  .grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .thumb { font-size: 36px; }
+  .name { font-size: 14px; }
+}
