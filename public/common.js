@@ -135,3 +135,59 @@ window.addEventListener('storage', e => {
 });
 
 updateCartBadge();
+
+/* ===== Tài khoản (Supabase Auth) ===== */
+
+let sbPromise = null;
+
+// Kết nối Supabase (null nếu không tải được thư viện, trang vẫn dùng được như khách)
+function getSb() {
+  if (!sbPromise) {
+    sbPromise = (async () => {
+      if (!window.supabase) return null;
+      try {
+        const res = await fetch('/api/config');
+        if (!res.ok) return null;
+        const cfg = await res.json();
+        return window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey);
+      } catch (err) {
+        console.error(err);
+        return null;
+      }
+    })();
+  }
+  return sbPromise;
+}
+
+async function getSession() {
+  const sb = await getSb();
+  if (!sb) return null;
+  try {
+    const { data } = await sb.auth.getSession();
+    return data.session || null;
+  } catch {
+    return null;
+  }
+}
+
+async function getToken() {
+  const session = await getSession();
+  return session ? session.access_token : null;
+}
+
+// Liên kết "Đăng nhập" / "Tài khoản" ở đầu trang
+async function setupAccountLink() {
+  const el = document.getElementById('account-link');
+  if (!el) return;
+  const sb = await getSb();
+  if (!sb) return;
+
+  function apply(session) {
+    el.textContent = session ? 'Tài khoản' : 'Đăng nhập';
+    el.href = session ? '/tai-khoan' : '/dang-nhap';
+  }
+  apply(await getSession());
+  sb.auth.onAuthStateChange((_event, session) => apply(session));
+}
+
+setupAccountLink();

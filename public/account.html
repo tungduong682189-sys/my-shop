@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tài khoản | Cửa hàng nhà đẹp</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap header-row">
+      <a class="brand" href="/">Cửa hàng Đặng Thới</a>
+      <form action="/" method="get" class="search-form">
+        <input id="search" name="q" type="search" placeholder="Tìm sản phẩm..." maxlength="100" aria-label="Tìm sản phẩm">
+      </form>
+      <a class="cart-link" id="account-link" href="/tai-khoan">Tài khoản</a>
+      <a class="cart-link" href="/gio-hang" aria-label="Giỏ hàng">Giỏ hàng <span id="cart-count" class="cart-count" hidden>0</span></a>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="account-head">
+      <h1>Tài khoản của tôi</h1>
+      <button id="logout-btn" class="secondary-btn" type="button">Đăng xuất</button>
+    </div>
+    <p id="account-email" class="account-email"></p>
+
+    <h2 class="section-title">Đơn hàng của tôi</h2>
+    <p id="orders-loading" class="note">Đang tải...</p>
+    <ul id="orders-list" class="my-orders"></ul>
+    <section id="orders-empty" class="notfound" hidden>
+      <p>Bạn chưa có đơn hàng nào.</p>
+      <a class="btn" href="/">Bắt đầu mua sắm</a>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">© Cửa hàng nhà đẹp</div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/common.js"></script>
+  <script src="/account.js"></script>
+</body>
+</html>

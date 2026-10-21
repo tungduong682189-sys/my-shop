@@ -151,9 +151,12 @@ form.addEventListener('submit', async (e) => {
   placeBtn.textContent = 'Đang gửi đơn...';
 
   try {
+    const headers = { 'Content-Type': 'application/json' };
+    const token = await getToken();
+    if (token) headers.Authorization = 'Bearer ' + token;
     const res = await fetch('/api/orders', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         items: items.map(i => ({ id: i.id, quantity: i.quantity })),
         customer_name: nameEl.value.trim(),
@@ -192,3 +195,20 @@ form.addEventListener('submit', async (e) => {
 });
 
 refresh();
+
+// Gợi ý đăng nhập (không bắt buộc)
+(async () => {
+  const hint = document.getElementById('login-hint');
+  if (!hint) return;
+  const token = await getToken();
+  hint.hidden = false;
+  if (token) {
+    hint.textContent = 'Bạn đã đăng nhập, đơn hàng sẽ được lưu trong tài khoản của bạn.';
+  } else {
+    hint.textContent = 'Bạn chưa đăng nhập vẫn đặt hàng được. ';
+    const link = document.createElement('a');
+    link.href = '/dang-nhap?next=/thanh-toan';
+    link.textContent = 'Đăng nhập để lưu lịch sử đơn hàng';
+    hint.appendChild(link);
+  }
+})();

@@ -1,7 +1,9 @@
 require('dotenv').config();
 
-if (!process.env.DATABASE_URL) {
-  console.error('Thiếu biến môi trường: DATABASE_URL');
+const missing = ['DATABASE_URL', 'SUPABASE_URL', 'SUPABASE_ANON_KEY']
+  .filter(k => !process.env[k]);
+if (missing.length) {
+  console.error('Thiếu biến môi trường:', missing.join(', '));
   process.exit(1);
 }
 
@@ -9,6 +11,7 @@ const express = require('express');
 const path = require('path');
 const crypto = require('crypto');
 const { Pool } = require('pg');
+const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 app.set('trust proxy', 1); // để lấy đúng địa chỉ IP khi chạy sau Render
@@ -18,6 +21,12 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY,
+  { auth: { persistSession: false, autoRefreshToken: false } }
+);
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -234,7 +243,9 @@ app.post('/api/orders', async (req, res) => {
   if (orderRateLimited(req.ip)) {
     return res.status(429).json({ error: 'Bạn đặt hàng quá nhanh. Hãy thử lại sau ít phút.' });
   }
-
+  
+  const user = await userFromRequest(req);
+  const userId = user ? user.id : null;
   const ids = [...wanted.keys()].sort((a, b) => a - b);
   const client = await pool.connect();
 
@@ -301,10 +312,10 @@ app.post('/api/orders', async (req, res) => {
     // Tạo đơn và các dòng hàng
     const code = 'DH-' + crypto.randomBytes(6).toString('hex').toUpperCase();
     const order = await client.query(
-      `INSERT INTO orders (code, customer_name, phone, address, note, total, payment_method)
-       VALUES ($1, $2, $3, $4, $5, $6, 'cod')
-       RETURNING id, code`,
-      [code, name, phone, address, note, total]
+      `INSERT INTO orders (code, user_id, customer_name, phone, address, note, total, payment_method)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, 'cod')
+        RETURNING id, code`,
+      [code, userId, name, phone, address, note, total]
     );
     await client.query(
       `INSERT INTO order_items (order_id, product_id, name, price, quantity)
@@ -367,6 +378,70 @@ app.get('/don-hang/:code', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'order.html'));
 });
 
+/* ===================== TÀI KHOẢN ===================== */
+
+// Cấu hình công khai cho trình duyệt (khóa publishable được phép công khai)
+app.get('/api/config', (req, res) => {
+  res.json({
+    supabaseUrl: process.env.SUPABASE_URL,
+    supabaseKey: process.env.SUPABASE_ANON_KEY
+  });
+});
+
+// Xác định người dùng từ token; không hợp lệ thì coi như khách
+async function userFromRequest(req) {
+  const header = req.headers.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+  if (!token) return null;
+  try {
+    const { data, error } = await supabase.auth.getUser(token);
+    if (error || !data.user) return null;
+    return data.user;
+  } catch (err) {
+    console.error(err);
+    return null;
+  }
+}
+
+async function requireUser(req, res, next) {
+  const user = await userFromRequest(req);
+  if (!user) return res.status(401).json({ error: 'Chưa đăng nhập' });
+  req.user = user;
+  next();
+}
+
+// Lịch sử đơn hàng của người đang đăng nhập
+app.get('/api/my/orders', requireUser, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT o.code, o.total, o.status, o.created_at,
+              COALESCE(
+                (SELECT json_agg(json_build_object('name', i.name, 'quantity', i.quantity) ORDER BY i.id)
+                 FROM order_items i WHERE i.order_id = o.id),
+                '[]'::json
+              ) AS items
+       FROM orders o
+       WHERE o.user_id = $1
+       ORDER BY o.id DESC
+       LIMIT 50`,
+      [req.user.id]
+    );
+    res.set('Cache-Control', 'no-store');
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Lỗi máy chủ' });
+  }
+});
+
+// Các trang
+app.get('/dang-nhap', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+app.get('/tai-khoan', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'account.html'));
+});
+
 app.listen(PORT, () => {
   console.log(`Cửa hàng chạy tại http://localhost:${PORT}`);
 });
@@ -386,6 +461,8 @@ app.post('/api/cart/validate', async (req, res) => {
   }
   if (wantedMap.size === 0) return res.json({ items: [], total: 0 });
 
+  const user = await userFromRequest(req);
+  const userId = user ? user.id : null;
   const ids = [...wantedMap.keys()];
   try {
     const result = await pool.query(

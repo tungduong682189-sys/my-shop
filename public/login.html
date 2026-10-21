@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Đăng nhập | Cửa hàng Đặng Thới</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap header-row">
+      <a class="brand" href="/">Cửa hàng Đặng Thới</a>
+      <form action="/" method="get" class="search-form">
+        <input id="search" name="q" type="search" placeholder="Tìm sản phẩm..." maxlength="100" aria-label="Tìm sản phẩm">
+      </form>
+      <a class="cart-link" id="account-link" href="/dang-nhap">Đăng nhập</a>
+      <a class="cart-link" href="/gio-hang" aria-label="Giỏ hàng">Giỏ hàng <span id="cart-count" class="cart-count" hidden>0</span></a>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="panel auth-card">
+      <h1 class="page-title">Đăng nhập</h1>
+      <form id="auth-form" novalidate>
+        <div class="field">
+          <label for="email">Email</label>
+          <input id="email" type="email" autocomplete="email" required>
+        </div>
+        <div class="field">
+          <label for="password">Mật khẩu (ít nhất 6 ký tự)</label>
+          <input id="password" type="password" minlength="6" autocomplete="current-password" required>
+        </div>
+        <p id="auth-msg" class="auth-msg" role="alert"></p>
+        <div class="auth-buttons">
+          <button id="login-btn" class="buy-btn" type="submit">Đăng nhập</button>
+          <button id="signup-btn" class="secondary-btn" type="button">Đăng ký</button>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">© Cửa hàng nhà đẹp</div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/common.js"></script>
+  <script src="/login.js"></script>
+</body>
+</html>
