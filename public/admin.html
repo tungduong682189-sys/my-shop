@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Quản trị | Cửa hàng Đặng Thới</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap header-row">
+      <a class="brand" href="/">Cửa hàng Đặng Thới</a>
+      <span class="admin-badge">Quản trị</span>
+      <span class="spacer"></span>
+      <a class="cart-link" href="/">Xem cửa hàng</a>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <p id="gate" class="note">Đang kiểm tra quyền truy cập...</p>
+
+    <div id="panel" hidden>
+      <nav id="tabs" class="tabs" aria-label="Mục quản trị">
+        <button type="button" class="tab active" data-tab="overview">Tổng quan</button>
+        <button type="button" class="tab" data-tab="orders">Đơn hàng</button>
+        <button type="button" class="tab" data-tab="customers">Khách hàng</button>
+      </nav>
+      <section id="tab-body"></section>
+    </div>
+
+    <dialog id="detail" class="detail-dialog">
+      <div id="detail-body"></div>
+      <div class="dialog-foot"><button id="detail-close" type="button" class="secondary-btn">Đóng</button></div>
+    </dialog>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/common.js"></script>
+  <script src="/admin.js"></script>
+</body>
+</html>

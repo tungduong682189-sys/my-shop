@@ -176,6 +176,35 @@ async function getToken() {
 }
 
 // Liên kết "Đăng nhập" / "Tài khoản" ở đầu trang
+// Hiện liên kết "Quản trị" nếu tài khoản đang đăng nhập là admin
+async function setupAdminLink(session) {
+  if (!session) {
+    const old = document.getElementById('admin-link');
+    if (old) old.remove();
+    return;
+  }
+  const account = document.getElementById('account-link');
+  if (!account) return;
+
+  try {
+    const res = await fetch('/api/admin/me', {
+      headers: { Authorization: 'Bearer ' + session.access_token }
+    });
+    if (!res.ok) return;
+  } catch {
+    return;
+  }
+
+  if (document.getElementById('admin-link')) return;
+  const a = document.createElement('a');
+  a.id = 'admin-link';
+  a.className = 'cart-link';
+  a.href = '/quan-tri';
+  a.textContent = 'Quản trị';
+  account.before(a);
+}
+
+// Liên kết "Đăng nhập" / "Tài khoản" ở đầu trang
 async function setupAccountLink() {
   const el = document.getElementById('account-link');
   if (!el) return;
@@ -185,6 +214,7 @@ async function setupAccountLink() {
   function apply(session) {
     el.textContent = session ? 'Tài khoản' : 'Đăng nhập';
     el.href = session ? '/tai-khoan' : '/dang-nhap';
+    setupAdminLink(session);
   }
   apply(await getSession());
   sb.auth.onAuthStateChange((_event, session) => apply(session));

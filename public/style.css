@@ -535,3 +535,75 @@ a.card:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 @media (max-width: 520px) {
   .header-row { gap: 8px; }
 }
+
+/* ===== Trang quản trị ===== */
+.admin-badge { background: #1f2933; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
+.spacer { flex: 1; }
+
+.tabs { display: flex; gap: 8px; margin: 20px 0 16px; flex-wrap: wrap; }
+.tab {
+  border: none; background: var(--chip); color: var(--text);
+  padding: 9px 18px; border-radius: 999px; font-size: 15px; font-family: inherit; cursor: pointer;
+}
+.tab:hover { background: #e0d9ce; }
+.tab.active { background: var(--primary); color: #fff; }
+
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+.stat { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+.stat.alert { border-color: #d97706; background: #fff7e6; }
+.stat-value { font-size: 24px; font-weight: 700; overflow-wrap: anywhere; }
+.stat-label { color: var(--muted); font-size: 13px; margin-top: 4px; }
+
+.admin-bar { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+.admin-bar input[type="search"] {
+  flex: 1; min-width: 200px; padding: 9px 12px; border: 1px solid var(--line);
+  border-radius: 8px; font-size: 15px; background: var(--card); color: var(--text); font-family: inherit;
+}
+
+.table-wrap { overflow-x: auto; background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
+.admin-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.admin-table th, .admin-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.admin-table th { background: var(--bg); color: var(--muted); font-weight: 600; }
+.admin-table tr:last-child td { border-bottom: none; }
+
+.secondary-btn.small, .buy-btn.small { padding: 6px 14px; font-size: 14px; }
+.danger-btn {
+  padding: 6px 14px; border: 1px solid #b91c1c; background: transparent; color: #b91c1c;
+  border-radius: 999px; font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer;
+}
+.danger-btn:hover:not(:disabled) { background: #b91c1c; color: #fff; }
+.danger-btn:disabled { opacity: .6; cursor: default; }
+
+.pager { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 16px 0; font-size: 14px; color: var(--muted); }
+
+.status-pill.s-new { background: #fff7e6; color: #7a4a00; }
+.status-pill.s-confirmed { background: #e6f1fb; color: #0c447c; }
+.status-pill.s-shipping { background: #eeedfe; color: #3c3489; }
+.status-pill.s-done { background: #e6f4ea; color: #15803d; }
+.status-pill.s-cancelled { background: #fbeaea; color: #b91c1c; }
+
+.detail-dialog { width: min(640px, 94vw); border: none; border-radius: 14px; padding: 20px; background: var(--card); color: var(--text); }
+.detail-dialog::backdrop { background: rgba(0, 0, 0, .45); }
+.detail-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.detail-head h2 { margin: 0; font-size: 20px; font-family: ui-monospace, Menlo, Consolas, monospace; }
+.detail-dialog h3 { margin: 16px 0 6px; font-size: 16px; }
+.detail-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+.dialog-foot { text-align: right; margin-top: 16px; }
+
+/* ===== Thẻ số liệu bấm được ===== */
+button.stat {
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+button.stat:hover {
+  border-color: var(--primary);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+button.stat:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.stat-hint { margin-top: 8px; font-size: 12px; color: var(--primary); }
+.plain-title { font-family: inherit; font-size: 18px; margin: 0 0 12px; }

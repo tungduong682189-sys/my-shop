@@ -246,6 +246,7 @@ app.post('/api/orders', async (req, res) => {
   
   const user = await userFromRequest(req);
   const userId = user ? user.id : null;
+  const userEmail = user ? user.email : null;
   const ids = [...wanted.keys()].sort((a, b) => a - b);
   const client = await pool.connect();
 
@@ -312,10 +313,10 @@ app.post('/api/orders', async (req, res) => {
     // Tạo đơn và các dòng hàng
     const code = 'DH-' + crypto.randomBytes(6).toString('hex').toUpperCase();
     const order = await client.query(
-      `INSERT INTO orders (code, user_id, customer_name, phone, address, note, total, payment_method)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, 'cod')
-        RETURNING id, code`,
-      [code, userId, name, phone, address, note, total]
+      `INSERT INTO orders (code, user_id, email, customer_name, phone, address, note, total, payment_method)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'cod')
+       RETURNING id, code`,
+      [code, userId, userEmail, name, phone, address, note, total]
     );
     await client.query(
       `INSERT INTO order_items (order_id, product_id, name, price, quantity)
@@ -440,6 +441,253 @@ app.get('/dang-nhap', (req, res) => {
 });
 app.get('/tai-khoan', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'account.html'));
+});
+
+/* ===================== QUẢN TRỊ ===================== */
+
+const STATUSES = ['new', 'confirmed', 'shipping', 'done', 'cancelled'];
+const NEXT_STATUS = {
+  new: ['confirmed', 'cancelled'],
+  confirmed: ['shipping', 'cancelled'],
+  shipping: ['done', 'cancelled'],
+  done: [],
+  cancelled: []
+};
+
+function likePattern(q) {
+  return '%' + q.replace(/[\\%_]/g, '\\$&') + '%';
+}
+
+function pageParams(req) {
+  return {
+    page: Math.max(1, parseInt(req.query.page, 10) || 1),
+    limit: 20
+  };
+}
+
+// Chỉ tài khoản có trong bảng admins mới đi qua được
+async function requireAdmin(req, res, next) {
+  const user = await userFromRequest(req);
+  if (!user) return res.status(401).json({ error: 'Chưa đăng nhập' });
+  try {
+    const r = await pool.query('SELECT 1 FROM admins WHERE user_id = $1', [user.id]);
+    if (r.rows.length === 0) {
+      return res.status(403).json({ error: 'Tài khoản này không có quyền quản trị' });
+    }
+    req.user = user;
+    res.set('Cache-Control', 'no-store');
+    next();
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Lỗi máy chủ' });
+  }
+}
+app.use('/api/admin', requireAdmin);
+
+app.get('/api/admin/me', (req, res) => {
+  res.json({ admin: true, email: req.user.email });
+});
+
+// Tổng quan
+app.get('/api/admin/stats', async (req, res) => {
+  try {
+    const [byStatus, customers, low] = await Promise.all([
+      pool.query(
+        `SELECT status, COUNT(*)::int AS count, COALESCE(SUM(total), 0)::float8 AS sum
+         FROM orders GROUP BY status`
+      ),
+      pool.query(
+        `SELECT COUNT(DISTINCT COALESCE(user_id::text, 'phone:' || phone))::int AS n FROM orders`
+      ),
+      pool.query(
+        `SELECT COUNT(*)::int AS n FROM products WHERE is_active = true AND stock <= 5`
+      )
+    ]);
+    const stats = {};
+    STATUSES.forEach(s => { stats[s] = { count: 0, sum: 0 }; });
+    byStatus.rows.forEach(r => { stats[r.status] = { count: r.count, sum: r.sum }; });
+    res.json({ byStatus: stats, customers: customers.rows[0].n, lowStock: low.rows[0].n });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Lỗi máy chủ' });
+  }
+});
+
+// Danh sách đơn hàng
+app.get('/api/admin/orders', async (req, res) => {
+  const { page, limit } = pageParams(req);
+  const status = String(req.query.status || '');
+  const q = String(req.query.q || '').trim().slice(0, 100);
+
+  const where = [];
+  const params = [];
+  if (STATUSES.includes(status)) {
+    params.push(status);
+    where.push(`status = $${params.length}`);
+  }
+  if (q) {
+    params.push(likePattern(q));
+    const n = params.length;
+    where.push(
+      `(code ILIKE $${n} OR customer_name ILIKE $${n} OR phone ILIKE $${n} OR COALESCE(email, '') ILIKE $${n})`
+    );
+  }
+  const whereSql = where.length ? 'WHERE ' + where.join(' AND ') : '';
+
+  try {
+    const count = await pool.query(`SELECT COUNT(*)::int AS n FROM orders ${whereSql}`, params);
+    const rows = await pool.query(
+      `SELECT id, code, customer_name, phone, total, status, created_at,
+              (user_id IS NOT NULL) AS has_account
+       FROM orders ${whereSql}
+       ORDER BY id DESC
+       LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, limit, (page - 1) * limit]
+    );
+    const total = count.rows[0].n;
+    res.json({ items: rows.rows, total, page, pages: Math.max(1, Math.ceil(total / limit)) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Lỗi máy chủ' });
+  }
+});
+
+// Chi tiết một đơn
+app.get('/api/admin/orders/:id', async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0 || id > 2147483647) {
+    return res.status(400).json({ error: 'Mã đơn không hợp lệ' });
+  }
+  try {
+    const o = await pool.query(
+      `SELECT id, code, user_id IS NOT NULL AS has_account, email, customer_name, phone,
+              address, note, total, payment_method, status, created_at
+       FROM orders WHERE id = $1`,
+      [id]
+    );
+    if (o.rows.length === 0) return res.status(404).json({ error: 'Không tìm thấy đơn hàng' });
+    const items = await pool.query(
+      'SELECT name, price, quantity FROM order_items WHERE order_id = $1 ORDER BY id',
+      [id]
+    );
+    res.json({ order: o.rows[0], items: items.rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Lỗi máy chủ' });
+  }
+});
+
+// Đổi trạng thái đơn (hủy đơn thì cộng lại kho, trong cùng một giao dịch)
+app.patch('/api/admin/orders/:id/status', async (req, res) => {
+  const id = Number(req.params.id);
+  const next = String((req.body || {}).status || '');
+  if (!Number.isInteger(id) || id <= 0 || id > 2147483647) {
+    return res.status(400).json({ error: 'Mã đơn không hợp lệ' });
+  }
+  if (!STATUSES.includes(next)) {
+    return res.status(400).json({ error: 'Trạng thái không hợp lệ' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const o = await client.query('SELECT status FROM orders WHERE id = $1 FOR UPDATE', [id]);
+    if (o.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Không tìm thấy đơn hàng' });
+    }
+    const current = o.rows[0].status;
+    if (!(NEXT_STATUS[current] || []).includes(next)) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'Không thể chuyển đơn từ trạng thái này sang trạng thái đã chọn' });
+    }
+
+    if (next === 'cancelled') {
+      await client.query(
+        `UPDATE products p SET stock = p.stock + s.qty
+         FROM (SELECT product_id, SUM(quantity)::int AS qty
+               FROM order_items
+               WHERE order_id = $1 AND product_id IS NOT NULL
+               GROUP BY product_id) s
+         WHERE p.id = s.product_id`,
+        [id]
+      );
+    }
+    await client.query('UPDATE orders SET status = $1 WHERE id = $2', [next, id]);
+    await client.query('COMMIT');
+    res.json({ status: next });
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch {}
+    console.error(err);
+    res.status(500).json({ error: 'Lỗi máy chủ' });
+  } finally {
+    client.release();
+  }
+});
+
+// Danh sách khách hàng (tổng hợp từ các đơn đã đặt)
+app.get('/api/admin/customers', async (req, res) => {
+  const { page, limit } = pageParams(req);
+  const q = String(req.query.q || '').trim().slice(0, 100);
+
+  const params = [];
+  let having = '';
+  if (q) {
+    params.push(likePattern(q));
+    having = `HAVING BOOL_OR(customer_name ILIKE $1 OR phone ILIKE $1 OR COALESCE(email, '') ILIKE $1)`;
+  }
+  const groupKey = `COALESCE(user_id::text, 'phone:' || phone)`;
+
+  try {
+    const count = await pool.query(
+      `SELECT COUNT(*)::int AS n FROM (
+         SELECT 1 FROM orders GROUP BY ${groupKey} ${having}
+       ) t`,
+      params
+    );
+    const rows = await pool.query(
+      `SELECT (array_agg(customer_name ORDER BY id DESC))[1] AS name,
+              (array_agg(phone ORDER BY id DESC))[1] AS phone,
+              (array_agg(email ORDER BY id DESC) FILTER (WHERE email IS NOT NULL))[1] AS email,
+              BOOL_OR(user_id IS NOT NULL) AS has_account,
+              COUNT(*)::int AS orders,
+              COALESCE(SUM(total) FILTER (WHERE status <> 'cancelled'), 0)::float8 AS spent,
+              MAX(created_at) AS last_order
+       FROM orders
+       GROUP BY ${groupKey}
+       ${having}
+       ORDER BY MAX(id) DESC
+       LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, limit, (page - 1) * limit]
+    );
+    const total = count.rows[0].n;
+    res.json({ items: rows.rows, total, page, pages: Math.max(1, Math.ceil(total / limit)) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Lỗi máy chủ' });
+  }
+});
+
+// Sản phẩm sắp hết hàng (còn từ 5 cái trở xuống)
+app.get('/api/admin/low-stock', async (req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT p.id, p.name, p.stock, c.name AS category
+       FROM products p
+       LEFT JOIN categories c ON c.id = p.category_id
+       WHERE p.is_active = true AND p.stock <= 5
+       ORDER BY p.stock ASC, p.id`
+    );
+    res.json(r.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Lỗi máy chủ' });
+  }
+});
+
+// Trang quản trị (HTML công khai nhưng không chứa dữ liệu; dữ liệu chỉ lấy được qua API đã kiểm tra quyền)
+app.get('/quan-tri', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
 app.listen(PORT, () => {
